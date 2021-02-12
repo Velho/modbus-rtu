@@ -45,11 +45,12 @@ void delay_ms(int delay);
 
 int usart_sent = 0;
 
+
 /**
  * Modbus frame management interface.
  */
 
-#define MODBUS_MAX_FRAME_SZ 8
+#define MODBUS_MAX_APDU_SZ 8
 
 typedef struct modbus_buffer {
 	uint8_t buffer[80];
@@ -116,40 +117,7 @@ int main(void) {
 
 			com.rx_handled = 1; // Just a control flag.
 			com.size = 0;
-		}
-
-		if (usart_sent && USART2->SR & 0x0040)
-		{
-			char text[] = "DONE";
-			int i;
-			for (i = 0; i < sizeof(text); i++) {
-				USART_write(text[i]);
-			}
-
-			usart_sent = 0;
-		}
-
-		if (usart_sent) {
-
-			if (USART2->SR & 0x0040)
-			{
-//				char text[] = "DONE";
-//				int i;
-//				for (i = 0; i < sizeof(text); i++) {
-//					USART_write(text[i]);
-//				}
-//
-//				usart_sent = 0;
-			}
-			/*
-			USART_write((char)USART2->DR);
-
-			char text[] = "Serial data written.";
-			int i;
-			for (i = 0; i < sizeof(text); i++) {
-				USART_write(text[i]);
-			}
-			 */
+			com.completed = 0;
 		}
 
 	}
@@ -267,12 +235,8 @@ void USART_init(void) {
 	// USART2->CR1 |= 0x80; // TXE : Transmit data register empty.
 //	USART2->CR1 |= 0x0020;		// RXNE bit : Read data register not empty
 
-
 	// See page, 739 (CR1).
-//	USART2->CR1 |= USART_CR1_TCIE;
-
-	//USART2->CR1 |= (1 << 5); //
-	USART2->CR1 |= (1 << 6); // TC : Transmission complete.
+	USART2->CR1 |= USART_CR1_RXNEIE;
 }
 
 void USART_write(char data) {
@@ -281,40 +245,26 @@ void USART_write(char data) {
 	USART2->DR = (data);
 }
 
-void append(uint8_t data) {
-	// Reset the working frame.
-	if (com.rx_handled) {
-		com.rx_handled = 0;
-	}
-
+static void append(uint8_t data) {
 	com.buffer[com.size] = data;
 	com.size++;
 
 	// Mark the frame done.
-	if (com.size >= MODBUS_MAX_FRAME_SZ)
+	if (com.size >= MODBUS_MAX_APDU_SZ)
 		com.completed = 1;
 }
 
 void USART2_IRQHandler(void) {
 	// uint8_t * rx = modbus_read();
+	volatile unsigned char data; // We do not lift.
 
-	// We hit the IRQ handler, log the SR to output.
-
-	volatile char data; // We do not lift.
-	// RXNEIE : Data register not empty. (or atleast hope so..)
+	// RXNEIE : Data register not empty.
 	if (USART2->SR & USART_CR1_RXNEIE) {
-		// Echo & Sate of the USART transaction.
-		//	USART_write((char)(USART2->SR & 0x80));
-		//	USART_write((char)USART2->DR);
-
-		// append((uint8_t)USART2->SR);
-		// USART_write((char)USART2->SR);
 		data = (unsigned char)USART2->DR;
 		append(data);
 
-		USART_write((char)USART2->SR);
+		// Echo for now.
 		USART_write(data);
-		usart_sent = 1;
 	}
 }
 
