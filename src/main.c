@@ -29,6 +29,7 @@
 
 /* Includes */
 #include <stddef.h>
+#include <string.h>
 #include "stm32l1xx.h"
 
 /* Private typedef */
@@ -52,6 +53,14 @@ int usart_sent = 0;
 
 #define MODBUS_MAX_APDU_SZ 8
 
+typedef struct mb_frame {
+	uint8_t saddr;
+	uint8_t func;
+	uint16_t address;
+	uint16_t quantity;
+	uint16_t crc;
+} mb_f_t;
+
 typedef struct modbus_buffer {
 	uint8_t buffer[80];
 } mb_buf_t;
@@ -61,6 +70,8 @@ typedef struct modbus_com {
 	uint16_t size;
 	int completed;
 	int rx_handled;
+
+	mb_f_t frames[5];
 } mb_com_t;
 
 static mb_com_t com = { 0 };
@@ -108,12 +119,8 @@ int main(void) {
 	while (1) {
 
 		if (com.completed) {
-			// Let's send indication of completed modbus frame.
-			char text[] = "Frame assembled";
-			int i;
-			for (i = 0; i < sizeof(text); i++) {
-				USART_write(text[i]);
-			}
+			// Copy the memory from buffer to frames array.
+			memcpy(/*to*/&com.frames[0], /*from */com.buffer, sizeof(mb_f_t));
 
 			com.rx_handled = 1; // Just a control flag.
 			com.size = 0;
