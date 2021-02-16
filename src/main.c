@@ -28,9 +28,14 @@
  */
 
 /* Includes */
+
+#include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <assert.h>
+
 #include "stm32l1xx.h"
+#include "irq-handlers/serial_irq.h"
 
 /* Private typedef */
 /* Private define  */
@@ -238,9 +243,9 @@ void USART_init(void) {
 	USART2->CR1 |= 0x00000004;	// RE bit. p739-740. Enable receiver
 	USART2->CR1 |= 0x00002000;	// UE bit. p739-740. Uart enable
 
-//	USART2->CR1 |= (1 << 6); // TC : Transmission complete.
-	// USART2->CR1 |= 0x80; // TXE : Transmit data register empty.
-//	USART2->CR1 |= 0x0020;		// RXNE bit : Read data register not empty
+	// USART2->CR1 |= (1 << 6); 	// TC : Transmission complete.
+	// USART2->CR1 |= 0x80; 		// TXE : Transmit data register empty.
+	// USART2->CR1 |= 0x0020;		// RXNE bit : Read data register not empty
 
 	// See page, 739 (CR1).
 	USART2->CR1 |= USART_CR1_RXNEIE;
@@ -251,27 +256,3 @@ void USART_write(char data) {
 	while (!(USART2->SR & 0x0080));
 	USART2->DR = (data);
 }
-
-static void append(uint8_t data) {
-	com.buffer[com.size] = data;
-	com.size++;
-
-	// Mark the frame done.
-	if (com.size >= MODBUS_MAX_APDU_SZ)
-		com.completed = 1;
-}
-
-void USART2_IRQHandler(void) {
-	// uint8_t * rx = modbus_read();
-	volatile unsigned char data; // We do not lift.
-
-	// RXNEIE : Data register not empty.
-	if (USART2->SR & USART_CR1_RXNEIE) {
-		data = (unsigned char)USART2->DR;
-		append(data);
-
-		// Echo for now.
-		USART_write(data);
-	}
-}
-
