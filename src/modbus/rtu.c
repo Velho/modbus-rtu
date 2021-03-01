@@ -44,16 +44,23 @@ static int modbus_receive_frame(uint8_t *buffer, uint16_t len) {
 	// Or start with the CRC, after which assign the other values.
 	frame.crc = (buffer[6] << 8) | buffer[7];
 
+	// TODO : Should we set some error flag or fail condition?
+
 	// Verify the CRC with Slave address.
-	if (modbus_crc_verify(buffer, len - 2, &frame)) {
-		if (frame.saddr == RTU_SADDR) {
-			// Clear the dirty flag?
-			modbus_com.packet.rframe = frame;	
-			return 1;
-		}
+	if (!modbus_crc_verify(buffer, len - 2, &frame)) {
+		return 0;
 	}
 
-	return 0;
+	// Verify the frame address.
+	if (frame.saddr == RTU_SADDR) {
+		return 0;
+	}
+
+	// Clear the dirty flag?
+	modbus_com.packet.dirty = 0;
+	modbus_com.packet.rframe = frame;
+
+	return 1;
 }
 
 static uint8_t *modbus_append_data(uint8_t data) {
