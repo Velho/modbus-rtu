@@ -9,6 +9,8 @@
 #define BME280_SENSOR_H_
 
 
+#include "bme280-reg.h"
+
 typedef struct config {
 
 	uint8_t p_mode;
@@ -44,5 +46,26 @@ typedef enum filter_mode {
 // ut, up, uh
 // Output compensation
 
+
+
+/**
+ * Returns temperature in DegC, resolution is 0.01 DegC.
+ * t_fine carries fine temperature as global value.
+ * \return Output value of “5123” equals 51.23 DegC.
+ */
+BME280_S32_t t_fine;
+BME280_S32_t BME280_compensate_T_int32(BME280_S32_t adc_T);
+
+/** 
+ * Returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits).
+ * \return Output value of “24674867” represents 24674867/256 = 96386.2 Pa = 963.862 hPa
+ */
+BME280_U32_t BME280_compensate_P_int64(BME280_S32_t adc_P);
+
+/**
+ * Returns humidity in %RH as unsigned 32 bit integer in Q22.10 format (22 integer and 10 fractional bits).
+ * \return Output value of “47445” represents 47445/1024 = 46.333 %RH
+ */
+BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H);
 
 #endif /* BME280_SENSOR_H_ */
