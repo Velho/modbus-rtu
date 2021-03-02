@@ -52,7 +52,7 @@ static int modbus_receive_frame(uint8_t *buffer, uint16_t len) {
 	}
 
 	// Verify the frame address.
-	if (frame.saddr == RTU_SADDR) {
+	if (frame.saddr != RTU_SADDR) {
 		return 0;
 	}
 
