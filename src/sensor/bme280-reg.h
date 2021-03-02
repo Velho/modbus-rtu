@@ -41,7 +41,9 @@
 #define BME280_REG_CONF         0xF5
 
 
-typedef signed int BME280_S32_T;
-
+typedef signed int 		BME280_S32_t;
+typedef signed long     BME280_S64_t;
+typedef unsigned int 	BME280_U32_t;
+typedef unsigned long   BME280_U64_t;
 
 #endif /* BME280_REG_H_ */
