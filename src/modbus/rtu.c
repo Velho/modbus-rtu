@@ -22,7 +22,7 @@ static modbus_rtu_com_t modbus_com = { 0 }; // Allocate the modbus com struct.
  * \return int boolean condition if the CRC(modbus) is matching.
  */
 static int modbus_crc_verify(uint8_t *buffer, uint16_t size, modbus_frame_t *frame) {
-	return CRC16(buffer, size) == frame->crc;
+    return CRC16(buffer, size) == frame->crc;
 }
 
 /**
@@ -35,49 +35,49 @@ static int modbus_crc_verify(uint8_t *buffer, uint16_t size, modbus_frame_t *fra
  * \return int boolean condition if the frame is accepted.
  */
 static int modbus_receive_frame(uint8_t *buffer, uint16_t len) {
-	modbus_frame_t frame;
+    modbus_frame_t frame;
 
-	frame.saddr = buffer[0];
-	frame.func = buffer[1];
-	frame.address = (buffer[2] << 8) | buffer[3];
-	frame.quantity = (buffer[4] << 8) | buffer[5];
-	// Or start with the CRC, after which assign the other values.
-	frame.crc = (buffer[6] << 8) | buffer[7];
+    frame.saddr = buffer[0];
+    frame.func = buffer[1];
+    frame.address = (buffer[2] << 8) | buffer[3];
+    frame.quantity = (buffer[4] << 8) | buffer[5];
+    // Or start with the CRC, after which assign the other values.
+    frame.crc = (buffer[6] << 8) | buffer[7];
 
-	// TODO : Should we set some error flag or fail condition?
+    // TODO : Should we set some error flag or fail condition?
 
-	// Verify the CRC with Slave address.
-	if (!modbus_crc_verify(buffer, len - 2, &frame)) {
-		return 0;
-	}
+    // Verify the CRC with Slave address.
+    if (!modbus_crc_verify(buffer, len - 2, &frame)) {
+        return 0;
+    }
 
-	// Verify the frame address.
-	if (frame.saddr != RTU_SADDR) {
-		return 0;
-	}
+    // Verify the frame address.
+    if (frame.saddr != RTU_SADDR) {
+        return 0;
+    }
 
-	// Clear the dirty flag?
-	modbus_com.packet.dirty = 0;
-	modbus_com.packet.rframe = frame;
+    // Clear the dirty flag?
+    modbus_com.packet.dirty = 0;
+    modbus_com.packet.rframe = frame;
 
-	return 1;
+    return 1;
 }
 
 static uint8_t *modbus_append_data(uint8_t data) {
-	modbus_com.packet.buffer[modbus_com.packet.size] = data;
-	modbus_com.packet.size++;
+    modbus_com.packet.buffer[modbus_com.packet.size] = data;
+    modbus_com.packet.size++;
 
-	if (modbus_com.packet.size >= MODBUS_MAX_APDU_LEN) {
-		modbus_com.packet.dirty = 1;
-	}
+    if (modbus_com.packet.size >= MODBUS_MAX_APDU_LEN) {
+        modbus_com.packet.dirty = 1;
+    }
 
-	return &modbus_com.packet.buffer;
+    return &modbus_com.packet.buffer;
 }
 
 modbus_rtu_com_t *modbus_init() {
-	// Initialize rtu context.
+    // Initialize rtu context.
 
-	return &modbus_com;
+    return &modbus_com;
 }
 
 void modbus_write(modbus_rtu_com_t *com, uint8_t* nData, size_t szData) {
@@ -85,5 +85,5 @@ void modbus_write(modbus_rtu_com_t *com, uint8_t* nData, size_t szData) {
 }
 
 uint8_t *modbus_read(uint8_t data) {
-	return modbus_append_data(data);
+    return modbus_append_data(data);
 }
