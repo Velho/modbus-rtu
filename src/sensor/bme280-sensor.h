@@ -8,17 +8,16 @@
 #ifndef BME280_SENSOR_H_
 #define BME280_SENSOR_H_
 
+#include <stdint.h>
 
 #include "bme280-reg.h"
 
 typedef struct config {
+    uint8_t p_mode;
+    uint8_t t_mode;
+    uint8_t h_mode;
 
-	uint8_t p_mode;
-	uint8_t t_mode;
-	uint8_t h_mode;
-
-	uint8_t filter;
-
+    uint8_t filter;
 } config_t;
 
 typedef enum operating_mode {
@@ -29,13 +28,94 @@ typedef enum operating_mode {
 	BME280_OSAMPLE_16
 } op_mode_t;
 
+typedef enum oversampling_settings {
+    BME280_OSAMPLING_NONE = 0b000,
+    BME280_OSAMPLING_X1 = 0b001,
+    BME280_OSAMPLING_X2 = 0b010,
+    BME280_OSAMPLING_X4 = 0b011,
+    BME280_OSAMPLING_X8 = 0b100,
+    BME280_OSAMPLING_16 = 0b101
+} oversampling_t;
+
 typedef enum filter_mode {
-	BME280_FILTER_OFF,
-	BME280_FILTER_2,
-	BME280_FILTER_4,
-	BME280_FILTER_8,
-	BME280_FILTER_16,
-} f_mode_t;
+    BME280_FILTER_OFF = 0b000,
+    BME280_FILTER_X2 = 0b001,
+    BME280_FILTER_X4 = 0b010,
+    BME280_FILTER_X8 = 0b011,
+    BME280_FILTER_X16 = 0b100,
+} filter_t;
+
+typedef enum sensor_mode {
+    BME280_SLEEP_MODE = 0b00,
+    BME280_FORCED_MODE = 0b01,
+    BME280_NORMAL_MODE = 0b11
+} sensor_mode_t;
+
+typedef enum standby_mode {
+    BME280_STANDBY_MS_0_5 = 0b000,
+    BME280_STANDBY_MS_10 = 0b110,
+    BME280_STANDBY_MS_20 = 0b111,
+    BME280_STANDBY_MS_62_5 = 0b001,
+    BME280_STANDBY_MS_125 = 0b010,
+    BME280_STANDBY_MS_250 = 0b011,
+    BME280_STANDBY_MS_500 = 0b100,
+    BME280_STANDBY_MS_1000 = 0b101
+} standby_mode_t;
+
+/**
+ * Control measurement struct.
+ */
+typedef struct control_measurement {
+    // inactive duration => in normal mode.
+    BME280_U32_t filter : 3; ///< Filter Settings.
+
+    BME280_U32_t osrs_t : 3; ///< Temperature Oversampling.
+    BME280_U32_t osrs_p : 3; ///< Pressure Oversampling.
+    BME280_U32_t osrs_h : 3; ///< Humidity Oversampling.
+
+    BME280_U32_t devmode : 2; ///< Device mode.
+} ctrl_meas_t;
+
+/**
+ * Calibration structures.
+ */
+typedef struct pressure_calib {
+    uint16_t dig_P1;
+    int16_t dig_P2;
+    int16_t dig_P3;
+    int16_t dig_P4;
+    int16_t dig_P5;
+    int16_t dig_P6;
+    int16_t dig_P7;
+    int16_t dig_P8;
+    int16_t dig_P9;
+} pressure_calib_t;
+
+typedef struct humidity_calib {
+    uint8_t dig_H1;
+    uint16_t dig_H2;
+    uint8_t dig_H3;
+    int16_t dig_H4;
+} humidity_data_t;
+
+
+typedef struct temperature_calib {
+    uint16_t dig_T1;
+    int16_t dig_T2;
+    int16_t dig_T3;
+} temp_calib_t;
+
+typedef struct calibration_data {
+    /* TODO : Seperate these into their own structs? */
+    pressure_calib_t pres_data;
+    humidity_data_t hum_data;
+    temp_calib_t temp_data;
+
+    /* Represent the ADC values. */
+    BME280_S32_t adc_H;
+    BME280_S32_t adc_T;
+    BME280_S32_t adc_P;
+} calib_data_t;
 
 // Data readout is done by starting a burst read from
 // 0xF7 to 0xFC (temp and pres) or from
