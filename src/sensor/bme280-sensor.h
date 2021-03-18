@@ -112,12 +112,46 @@ typedef struct calibration_data {
     pressure_calib_t pres_data;
     humidity_data_t hum_data;
     temp_calib_t temp_data;
+} calib_data_t;
 
+/**
+ * Are these three raw structs what they suppose to be or
+ * what the data_t structs implement?
+ */
+typedef struct pressure {
+    uint8_t press_msb; ///< Contains the MSB part up[19:12] of the raw pressure measurement output data.
+    uint8_t press_lsb; ///< Contains the LSB part up[11:4] of the raw pressure measurement output data
+    uint8_t press_xlsb : 4; ///< Contains the XLSB part up[3:0] of the raw pressure measurement output data. Contents depend on temperature resolution. 
+} press_sensor_t;
+
+/**
+ * The “temp” register contains the raw temperature measurement output data ut[19:0].
+ */
+typedef struct temperature {
+    uint8_t temp_msb; ///< Contains the MSB part ut[19:12] of the raw temperature measurement output data.
+    uint8_t temp_lsb; ///< Contains the LSB part ut[11:4] of the raw temperature measurement output data.
+    uint8_t temp_xlsb : 4; ///< Contains the XLSB part ut[3:0] of the raw temperature measurement output data. Contents depend on pressure resolution.
+} temp_sensor_t;
+
+typedef struct humidity {
+    uint8_t hum_msb; ///< Contains the MSB part uh[15:8] of the raw humidity measurement output data.
+    uint8_t temp_lsb; ///< Contains the LSB part uh[7:0] of the raw humidity measurement output data.
+} hum_sensor_t;
+
+typedef struct bme280_sensor {
+    BME280_S32_t t_fine;
+
+    calib_data_t calib;
+    
     /* Represent the ADC values. */
     BME280_S32_t adc_H;
     BME280_S32_t adc_T;
     BME280_S32_t adc_P;
-} calib_data_t;
+
+    press_sensor_t press;
+    temp_sensor_t temp;
+    hum_sensor_t hum;
+};
 
 // Data readout is done by starting a burst read from
 // 0xF7 to 0xFC (temp and pres) or from
