@@ -12,22 +12,6 @@
 
 #include "bme280-reg.h"
 
-typedef struct config {
-    uint8_t p_mode;
-    uint8_t t_mode;
-    uint8_t h_mode;
-
-    uint8_t filter;
-} config_t;
-
-typedef enum operating_mode {
-	BME280_OSAMPLE_1 = 1,
-	BME280_OSAMPLE_2,
-	BME280_OSAMPLE_3,
-	BME280_OSAMPLE_8,
-	BME280_OSAMPLE_16
-} op_mode_t;
-
 typedef enum oversampling_settings {
     BME280_OSAMPLING_NONE = 0b000,
     BME280_OSAMPLING_X1 = 0b001,
@@ -61,6 +45,24 @@ typedef enum standby_mode {
     BME280_STANDBY_MS_500 = 0b100,
     BME280_STANDBY_MS_1000 = 0b101
 } standby_mode_t;
+
+
+typedef struct config {
+    uint8_t p_mode;
+    uint8_t t_mode;
+    uint8_t h_mode;
+
+    uint8_t filter;
+} config_t;
+
+/**
+ * The “config” register sets the rate, filter and interface options of the device. Writes to the “config” 
+ * register in normal mode may be ignored. In sleep mode writes are not ignored.
+*/
+struct bme280_config {
+    uint8_t t_sb : 2;   ///< Controls inactive duration tstandby in normal mode.
+    uint8_t filter : 2; ///< Controls the time constant of the IIR filter.
+};
 
 /**
  * Control measurement struct.
