@@ -11,6 +11,8 @@
 #include <stdint.h>
 
 #include "bme280-reg.h"
+#include "bme280-i2c.h"
+
 
 typedef enum oversampling_settings {
     BME280_OSAMPLING_NONE = 0b000,
@@ -98,7 +100,7 @@ typedef struct humidity_calib {
     uint16_t dig_H2;
     uint8_t dig_H3;
     int16_t dig_H4;
-} humidity_data_t;
+} humidity_calib_t;
 
 
 typedef struct temperature_calib {
@@ -108,9 +110,8 @@ typedef struct temperature_calib {
 } temp_calib_t;
 
 typedef struct calibration_data {
-    /* TODO : Seperate these into their own structs? */
     pressure_calib_t pres_data;
-    humidity_data_t hum_data;
+    humidity_calib_t hum_data;
     temp_calib_t temp_data;
 } calib_data_t;
 
@@ -138,7 +139,17 @@ typedef struct humidity {
     uint8_t temp_lsb; ///< Contains the LSB part uh[7:0] of the raw humidity measurement output data.
 } hum_sensor_t;
 
+typedef struct bme280_sensor_temp {
+    BME280_S32_t t_fine;
+    calib_data_t *calib;
+
+    BME280_S32_t adc_T;
+    temp_sensor_t temp;
+} sensor_temp_t;
+
 typedef struct bme280_sensor {
+    bme280_i2c_t if_channel;
+
     BME280_S32_t t_fine;
 
     calib_data_t calib;
@@ -148,10 +159,23 @@ typedef struct bme280_sensor {
     BME280_S32_t adc_T;
     BME280_S32_t adc_P;
 
+    /* Represents the raw sensor data. */
     press_sensor_t press;
     temp_sensor_t temp;
     hum_sensor_t hum;
-};
+
+    /* Represenets the calibration data. */
+    pressure_calib_t pres_data;
+    humidity_calib_t hum_data;
+    temp_calib_t temp_data;
+
+} sensor_t;
+
+/**
+ * Initializes the global bme280 sensor context.
+ * \returns boolean condition if initializaion failed.
+ */
+int bme280_init();
 
 // Data readout is done by starting a burst read from
 // 0xF7 to 0xFC (temp and pres) or from
