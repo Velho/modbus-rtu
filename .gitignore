@@ -4,3 +4,4 @@ settings.json
 # Debug files not tracked.
 Debug/
 Release/
+.settings/
