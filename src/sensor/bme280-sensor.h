@@ -49,42 +49,44 @@ typedef enum standby_mode {
 } standby_mode_t;
 
 
-typedef struct config {
-    uint8_t p_mode;
-    uint8_t t_mode;
-    uint8_t h_mode;
-
-    uint8_t filter;
+/**
+ * Sensor configuration options.
+ */
+typedef struct sensor_config {
+    uint8_t t_sb : 3;   ///< Inactive duration.
+    uint8_t filter : 3; ///< Filter settings.
 } config_t;
 
 /**
- * The “config” register sets the rate, filter and interface options of the device. Writes to the “config” 
- * register in normal mode may be ignored. In sleep mode writes are not ignored.
-*/
-struct bme280_config {
-    uint8_t t_sb : 2;   ///< Controls inactive duration tstandby in normal mode.
-    uint8_t filter : 2; ///< Controls the time constant of the IIR filter.
-};
-
-/**
  * Control measurement struct.
+ * Oversampling settings
+ * 000 - skipped
+ * 001 - x1
+ * 010 - x2
+ * 011 - x4
+ * 100 - x8
+ * 101 - x16
  */
 typedef struct control_measurement {
-    // inactive duration => in normal mode.
-    BME280_U32_t filter : 3; ///< Filter Settings.
-
     BME280_U32_t osrs_t : 3; ///< Temperature Oversampling.
     BME280_U32_t osrs_p : 3; ///< Pressure Oversampling.
-    BME280_U32_t osrs_h : 3; ///< Humidity Oversampling.
 
-    BME280_U32_t devmode : 2; ///< Device mode.
+    /**
+     * 00       - sleep
+     * 01 or 10 - forced
+     * 11       - normal
+     */
+    BME280_U32_t mode : 2; ///< Device mode.
 } ctrl_meas_t;
 
 /**
- * Calibration structures.
+ * Control humidity register sets the humidity data acquisition
+ * options of the device. Changes to this register only become
+ * effective after a write operation to "ctrl_meas".
  */
-typedef struct pressure_calib {
-    uint16_t dig_P1;
+typedef struct control_humidity {
+    BME280_U32_t osrs_h : 3; ///< Humidity Oversampling.
+} ctrl_hum_t;
     int16_t dig_P2;
     int16_t dig_P3;
     int16_t dig_P4;
@@ -126,17 +128,17 @@ typedef struct pressure {
 } press_sensor_t;
 
 /**
- * The “temp” register contains the raw temperature measurement output data ut[19:0].
+ * The temperature register contains the raw tempereature measurement output data ut[19:0].
  */
 typedef struct temperature {
-    uint8_t temp_msb; ///< Contains the MSB part ut[19:12] of the raw temperature measurement output data.
-    uint8_t temp_lsb; ///< Contains the LSB part ut[11:4] of the raw temperature measurement output data.
-    uint8_t temp_xlsb : 4; ///< Contains the XLSB part ut[3:0] of the raw temperature measurement output data. Contents depend on pressure resolution.
+    uint8_t temp_msb; ///<
+    uint8_t temp_lsb; ///<
+    uint8_t temp_xlsb : 4; ///<
 } temp_sensor_t;
 
 typedef struct humidity {
-    uint8_t hum_msb; ///< Contains the MSB part uh[15:8] of the raw humidity measurement output data.
-    uint8_t temp_lsb; ///< Contains the LSB part uh[7:0] of the raw humidity measurement output data.
+    uint8_t hum_msb; ///<
+    uint8_t temp_lsb; ///<
 } hum_sensor_t;
 
 typedef struct bme280_sensor_temp {
@@ -148,7 +150,9 @@ typedef struct bme280_sensor_temp {
 } sensor_temp_t;
 
 typedef struct bme280_sensor {
-    bme280_i2c_t if_channel;
+    bme280_i2c_t *if_channel;
+    uint8_t chip_id;
+    uint8_t status;
 
     BME280_S32_t t_fine;
 
@@ -163,6 +167,7 @@ typedef struct bme280_sensor {
     press_sensor_t press;
     temp_sensor_t temp;
     hum_sensor_t hum;
+} sensor_t;
 
     /* Represenets the calibration data. */
     pressure_calib_t pres_data;
