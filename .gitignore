@@ -1,0 +1,6 @@
+# vscode files.
+settings.json
+
+# Debug files not tracked.
+Debug/
+Release/

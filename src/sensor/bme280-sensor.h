@@ -58,24 +58,34 @@ typedef struct sensor_config {
 } config_t;
 
 /**
+ * Control humidity register sets the humidity data acquisition
+ * options of the device. Changes to this register only become
+ * effective after a write operation to "ctrl_meas".
+ */
+typedef struct control_humidity {
+    BME280_U32_t osrs_h : 3; ///< Humidity Oversampling.
+} ctrl_hum_t;
+
+/**
  * Control measurement struct.
  * Oversampling settings
- * 000 - skipped
- * 001 - x1
- * 010 - x2
- * 011 - x4
- * 100 - x8
- * 101 - x16
+ *  000 - skipped
+ *  001 - x1
+ *  010 - x2
+ *  011 - x4
+ *  100 - x8
+ *  101 - x16
+ * Different sensor modes
+ *  00       - sleep
+ *  01 or 10 - forced
+ *  11       - normal
  */
 typedef struct control_measurement {
     BME280_U32_t osrs_t : 3; ///< Temperature Oversampling.
     BME280_U32_t osrs_p : 3; ///< Pressure Oversampling.
 
-    /**
-     * 00       - sleep
-     * 01 or 10 - forced
-     * 11       - normal
-     */
+    ctrl_hum_t osrs_h; ///< Humidity oversampling type.
+
     BME280_U32_t mode : 2; ///< Device mode.
 } ctrl_meas_t;
 
