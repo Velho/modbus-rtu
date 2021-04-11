@@ -8,6 +8,10 @@
 
 #define I2C_BUFFER_LEN 32
 
+typedef struct BME280_I2C {
+    uint8_t address;
+} BME280_I2C_t;
+
 void BME280_I2C_init(void);
 
 /**

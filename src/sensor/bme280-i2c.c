@@ -1,19 +1,7 @@
 #include "bme280-i2c.h"
-
 #include "stm32l1xx.h"
 
-// TODO : Cleanup the module.
-
-static bme280_i2c_t bme280_i2c;
-
-void BME280_begin()
-{
-	bme280_i2c.rxindex = 0;
-	bme280_i2c.rxlength = 0;
-
-	bme280_i2c.txindex = 0;
-	bme280_i2c.txlength = 0;
-}
+static BME280_I2C_t bme280_i2c = { 0 };
 
 void BME280_set_address(uint8_t address)
 {
@@ -92,9 +80,6 @@ size_t BME280_write(uint8_t reg, uint8_t *data, uint16_t len)
 	// Start the communication by writing the START COND.
 	// Then the master waits for a read SR1 register followed by a write in the DR register
 	// with the slave address.
-
-	// bme280_i2c.txindex = 0; Reset the transfer index.
-	// bme280_i2c.txbuffer, transfer this buffer.
 
 	// [S]
 	// Is this required as we are not in the reception mode?
@@ -222,21 +207,18 @@ uint8_t *BME280_read(uint8_t reg, uint8_t *data, uint16_t len)
 	I2C1->CR1 |= I2C_CR1_STOP; // Stop condition.
 	I2C1->CR1 &= ~I2C_CR1_ACK; // Disable Ack.
 
-	return bme280_i2c.rxbuffer;
+	return data;
 }
 
 uint8_t BME280_write_u8(uint8_t reg, uint8_t value)
 {
-	// BME280_write(reg, &value, sizeof(value));
-	// I2C1_Write(bme280_i2c.address, reg, 1, &value);
-
 	BME280_write(bme280_i2c.address, reg, 1, &value);
 	return value;
 }
 
 uint8_t BME280_read_u8(uint8_t reg)
 {
-	uint8_t value = 1;
+	uint8_t value;
 	//	BME280_write_u8(reg, value);
 	BME280_read(reg, &value, sizeof(value));
 	return value;
