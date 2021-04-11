@@ -35,7 +35,9 @@
 #include <assert.h>
 
 #include "stm32l1xx.h"
+
 #include "irq-handlers/serial_irq.h"
+#include "sensor/bme280-sensor.h"
 
 /* Private typedef */
 /* Private define  */
@@ -43,41 +45,17 @@
 /* Private variables */
 /* Private function prototypes */
 /* Private functions */
+/* I2C */
+
 void SetSysClock(void);
 /* USART */
 void USART_init(void);
 void USART_write(char data);
 void delay_ms(int delay);
 
-void I2C_Init(void)
-{
-
-    RCC->AHBENR |= RCC_AHBENR_GPIOBEN;	// Enable GPIOB clock PB8(D15)=SCL,PB9(D14)=SDA.
-    RCC->APB1ENR |= RCC_APB1ENR_I2C1EN; // (??)
-
-    GPIOB->AFR[1] &= ~0xFF;     //PB8,PB9 I2C1 SCL, SDA. AFRH8 and AFRH9. clear
-    GPIOB->AFR[1] |= 0x44;      //GPIOx_AFRL p.189,AF4=I2C1(0100 BIN) p.177
-    GPIOB->MODER &= ~0xF0000;   //PB8 and PB9 clear
-
-    GPIOB->MODER |= 0xA0000;    // Alternate function mode PB8,PB9
-    GPIOB->OTYPER |= 0x300;     // output open-drain. p.184
-
-    // Driver circuit includes the pull-up resistors.
-    GPIOB->PUPDR &= ~0xF0000;   // No pull-up resistors for PB8 and PB9 p.185
-
-    /**
-     * Following is the required sequence in master mode.
-     * - Program the peripheral input clock in I2C_CR2 Register in
-     * 	 order generate correct timings.
-     * - Configure the clock control registers.
-     * - Configure the rise time register.
-     * - Program the I2C_CR1 register to enable the peripheral.
-     * - Set the START bit in the I2C_CR1 register to generate a Start condition (During the init or write?).
-     * Peripheral input clock frequency must be at least:
-     * 	- 2 MHz in SM mode
-     *  - 4 MHz in FM mode
-     */
-}
+/**
+ * Initializes the I2C peripheral.
+ */
 
 /**
  **===========================================================================
@@ -98,7 +76,6 @@ int main(void)
      */
 
     __disable_irq();
-    USART_init();
 
     /* Configure the system clock to 32 MHz and update SystemCoreClock */
     SetSysClock();
@@ -107,31 +84,27 @@ int main(void)
     /* TODO - Add your application code here */
 
     NVIC_EnableIRQ(USART2_IRQn);
+
+    // Enable ABH bus clock before the peripherals.
+    RCC->AHBENR |= 1;
+
+    USART_init();
+    BME280_I2C_init();
+
     __enable_irq();
 
-    RCC->AHBENR |= 1; // Enable ABH bus clock.
-    RCC->APB2ENR |= 0x00000200;
-
     GPIOA->MODER |= 0x3; // 11
-    // ADC setup.
-    ADC1->SQR5 = 0; // conversion sequence starts at ch0
-    // ADC1->CR2 = 0;			// bit 1=0: Single conversion mode, bit 11=0 align right
-    ADC1->SMPR3 = 7;		  // 384 cycles sampling time for channel 0 (longest)
-    ADC1->CR1 &= ~0x03000000; // resolution 12-bit
-    ADC1->CR2 |= 0x1;		  // bit 0, ADC on/off (1=on, 0=off)
 
     // Blink out LD5 as startup indicator.
-    GPIOA->MODER &= ~0x00000C00; //clear (input reset state for PA5). p184
-    GPIOA->MODER |= 0x400;		 //GPIOA pin 5 to output. p184
-    GPIOA->ODR ^= 0x20;			 //0010 0000 xor bit 5. p186
+    GPIOA->MODER &= ~0xC00; // clear (input reset state for PA5). p184
+    GPIOA->MODER |= 0x400;  // GPIOA pin 5 to output. p184
+
+    GPIOA->ODR ^= 0x20; // 0010 0000 xor bit 5. p186
     delay_ms(1000);
-    GPIOA->ODR ^= 0x20; //0010 0000 xor bit 5. p186
+    GPIOA->ODR ^= 0x20; // 0010 0000 xor bit 5. p186
     delay_ms(1000);
 
-    // BME280_init(); // Initializes the sensor.
-
-    int result = 0;
-    char buf[100];
+    BME280_init(); // Initializes the sensor.
 
     /* Infinite loop */
     while (1)
@@ -143,30 +116,8 @@ int main(void)
         // Read sensor.
         // Process sensor.
         // Prepare sensor packet.
-
-        ADC1->CR2 |= 0x40000000; //start conversion
-        while (!(ADC1->SR & 0x2))
-            ; //wait for conversion complete
-
-        result = ADC1->DR; //read conversion result
-
-        sprintf(buf, "%d", result);
-
-        int len = 0;
-        while (buf[len] != '\0')
-        {
-            len++;
-
-            for (int i = 0; i < len; i++)
-            {
-                USART_write(buf[i]);
-            }
-
-            USART_write('\n');
-            USART_write('\r');
-            delay_ms(1000);
-        }
     }
+
     return 0;
 }
 
@@ -269,12 +220,12 @@ void SetSysClock(void)
 
 void USART_init(void)
 {
-    RCC->APB1ENR |= 0x00020000;	 //set bit 17 (USART2 EN)
-    RCC->AHBENR |= 0x00000001;	 //enable GPIOA port clock bit 0 (GPIOA EN)
-    GPIOA->AFR[0] = 0x00000700;	 //GPIOx_AFRL p.188,AF7 p.177
+    RCC->APB1ENR |= 0x00020000;  //set bit 17 (USART2 EN)
+    RCC->AHBENR |= 0x00000001;   //enable GPIOA port clock bit 0 (GPIOA EN)
+    GPIOA->AFR[0] = 0x00000700;  //GPIOx_AFRL p.188,AF7 p.177
     GPIOA->AFR[0] |= 0x00007000; //GPIOx_AFRL p.188,AF7 p.177
-    GPIOA->MODER |= 0x00000020;	 //MODER2=PA2(TX) to mode 10=alternate function mode. p184
-    GPIOA->MODER |= 0x00000080;	 //MODER2=PA3(RX) to mode 10=alternate function mode. p184
+    GPIOA->MODER |= 0x00000020;  //MODER2=PA2(TX) to mode 10=alternate function mode. p184
+    GPIOA->MODER |= 0x00000080;  //MODER2=PA3(RX) to mode 10=alternate function mode. p184
 
     // Configure USART2.
     USART2->BRR = 0x00000116; // 115200 BAUD and crystal 32MHz. p710, D05
