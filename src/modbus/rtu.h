@@ -16,11 +16,11 @@
 #define RTU_APDU_MAX_BUF_LEN 	24
 
 typedef struct modbus_frame {
-    uint8_t saddr;
-    uint8_t func;
-    uint16_t address;
-    uint16_t quantity;
-    uint16_t crc;
+    uint8_t saddr;      ///< Slave Address.
+    uint8_t func;       ///< Function Code.
+    uint16_t address;   ///< Starting address.
+    uint16_t quantity;  ///< Quantity of Registers.
+    uint16_t crc;       ///< Error correction.   
 } modbus_frame_t;
 
 //
@@ -40,8 +40,6 @@ typedef struct modbus_packet {
     uint8_t buffer[RTU_APDU_MAX_BUF_LEN]; /**< Buffer used to store the raw data from serial com. */
 
     // 
-	// 
-    // 
     // Have we handled the last received packet.
     // Should this be handled under the packet rather than
     // here in the com management state struct?
@@ -55,7 +53,14 @@ typedef struct modbus_packet {
  */
 typedef struct modbus_rtu_com {
     int current; 			/**< Current index of the packet. TODO : Remove if packets are not stored in array. */
-    modbus_packet_t packet; /**< Latest packet assigned after constructing it. */
+    modbus_packet_t packet;
+    // modbus_packet_t *current; /**< Latest packet assigned after constructing it. */
+
+    modbus_packet_t rx_packet; /**< Transmitted Packet. */
+    modbus_packet_t tx_packet; /**< Transmitted Packet. */
+
+    int err;
+    int timeout; // TODO Implement the timeout.
 } modbus_rtu_com_t;
 
 // Initializes the Modbus interface.

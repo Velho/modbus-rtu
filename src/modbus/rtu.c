@@ -45,16 +45,18 @@ static int modbus_receive_frame(uint8_t *buffer, uint16_t len) {
     frame.crc = (buffer[6] << 8) | buffer[7];
 
     // TODO : Should we set some error flag or fail condition?
+    // Frame is verified earlier.
+    // Verify the frame address.
+    // if (frame.saddr != RTU_SADDR) {
+    //     // Mark as finished.
+    //     return 0;
+    // }
 
     // Verify the CRC with Slave address.
     if (!modbus_crc_verify(buffer, len - 2, &frame)) {
         return 0;
     }
 
-    // Verify the frame address.
-    if (frame.saddr != RTU_SADDR) {
-        return 0;
-    }
 
     // Clear the dirty flag?
     modbus_com.packet.dirty = 0;
@@ -63,15 +65,38 @@ static int modbus_receive_frame(uint8_t *buffer, uint16_t len) {
     return 1;
 }
 
-static uint8_t *modbus_append_data(uint8_t data) {
+static void modbus_reset()
+{
+    modbus_com.packet.size = 0;
+    modbus_com.packet.dirty = 0;
+}
+
+/**
+ * 
+ */
+static uint8_t modbus_append_data(uint8_t data) {
     modbus_com.packet.buffer[modbus_com.packet.size] = data;
     modbus_com.packet.size++;
 
-    if (modbus_com.packet.size >= MODBUS_MAX_APDU_LEN) {
+    uint8_t current = modbus_com.packet.size % MODBUS_MAX_APDU_LEN;
+    if (current >= MODBUS_MAX_APDU_LEN) {
+        // Packet not handled.
         modbus_com.packet.dirty = 1;
+        return 0;
     }
 
-    return &modbus_com.packet.buffer;
+    // Verify the address. 
+    if (current == 1) {
+        if (data != RTU_SADDR) {
+            // Set error flag and reset the handler.
+            modbus_com.err = 1;
+            modbus_com.timeout = 1;
+            modbus_reset();
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 modbus_rtu_com_t *modbus_init() {
@@ -85,5 +110,7 @@ void modbus_write(modbus_rtu_com_t *com, uint8_t* nData, size_t szData) {
 }
 
 uint8_t *modbus_read(uint8_t data) {
+    // Return the packet from modbus_com struct.
+
     return modbus_append_data(data);
 }

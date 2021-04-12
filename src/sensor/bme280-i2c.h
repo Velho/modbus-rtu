@@ -39,9 +39,9 @@ uint8_t BME280_write_u8(uint8_t reg, uint8_t value);
  * \param uint8_t register.
  * \param uint8_t* pointer to the rx buffer.
  * \param uint16_t size of the rx buffer.
- * \return uint8_t pointer.
+ * \return uint8_t value.
  */
-uint8_t *BME280_read(uint8_t reg, uint8_t *data, uint16_t len);
+uint8_t BME280_read(uint8_t reg, uint8_t *data, uint16_t len);
 
 /**
  * Reads unsigned byte value.
@@ -58,6 +58,8 @@ uint8_t BME280_read_u8(uint8_t reg);
  */
 uint16_t BME280_read_u16(uint8_t reg);
 int16_t BME280_read_s16(uint8_t reg);
+
+uint32_t BME280_read_u24(uint8_t reg);
 
 /**
  * \brief Reads byte from the i2c bus.

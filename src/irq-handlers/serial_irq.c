@@ -8,9 +8,13 @@ void USART2_IRQHandler(void) {
     if (USART2->SR & USART_CR1_RXNEIE) {
         unsigned char data = USART2->DR;
         // Modbus handle.
-        modbus_read(data);
+        if (modbus_read(data))
+        {
+            // Error handler
+        }
+
         // Echo for now.
-        USART_write(data);
+        // USART_write(data);
     }
 }
 

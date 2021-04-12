@@ -9,6 +9,7 @@
 #include "stm32l1xx.h"
 
 #include <string.h>
+#include <math.h>
 
 static sensor_t sensor = {0};
 
@@ -82,6 +83,9 @@ int BME280_init()
 	BME280_set_sampling(BME280_NORMAL_MODE, BME280_OSAMPLING_NONE);
 
 	__enable_irq();
+
+	i2c_delay_ms(100);
+
 	return 0;
 }
 
@@ -111,7 +115,6 @@ BME280_S32_t BME280_compensate_T_int32()
 
 BME280_U32_t bme280_compensate_H_int32()
 {
-
 	/*
 	BME280_S32_t v_x1_u32r;
 	v_x1_u32r = (t_fine – ((BME280_S32_t)76800));
@@ -154,13 +157,51 @@ BME280_U32_t BME280_compensate_P_int64()
 
 float BME280_read_humidity()
 {
-	float hum;
-	return hum;
+	BME280_read_temperature(); // Read the temperature to prep the sensor.
+
+	BME280_S32_t adc_h;
+	adc_h = BME280_read_s16(BME280_REGISTER_HUM_MSB);
+
+	// If the measurement is disabled.
+	if (sensor.adc_H == 0x8000)
+		return NAN;
+
+	sensor.adc_H = adc_h;
+	BME280_S32_t v_x1_u32r;
+
+	v_x1_u32r = (sensor.t_fine - ((int32_t)76800));
+	v_x1_u32r = (((((sensor.adc_H << 14) - (((int32_t)sensor.calib.dig_H4) << 20) -
+					(((int32_t)sensor.calib.dig_H5) * v_x1_u32r)) +
+				   ((int32_t)16384)) >>
+				  15) *
+				 (((((((v_x1_u32r * ((int32_t)sensor.calib.dig_H6)) >> 10) *
+					  (((v_x1_u32r * ((int32_t)sensor.calib.dig_H3)) >> 11) +
+					   ((int32_t)32768))) >>
+					 10) +
+					((int32_t)2097152)) *
+					   ((int32_t)sensor.calib.dig_H2) +
+				   8192) >>
+				  14));
+
+	v_x1_u32r = (v_x1_u32r - (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) *
+							   ((int32_t)sensor.calib.dig_H1)) >>
+							  4));
+
+	v_x1_u32r = (v_x1_u32r < 0) ? 0 : v_x1_u32r;
+	v_x1_u32r = (v_x1_u32r > 419430400) ? 419430400 : v_x1_u32r;
+	float h = (v_x1_u32r >> 12);
+	return h / 1024.0;
+
+	return h;
 }
 
 float BME280_read_temperature()
 {
-	float temp;
+	BME280_S32_t var1, var2;
+	BME280_S32_t adc_T;
+
+	
+
 	return temp;
 }
 
