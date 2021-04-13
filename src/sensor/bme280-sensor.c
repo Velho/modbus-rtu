@@ -98,63 +98,6 @@ void BME280_set_sampling(sensor_mode_t mode, oversampling_t sample)
 	BME280_write_u8(BME280_REGISTER_CTRL_MEAS, sample);
 }
 
-BME280_S32_t BME280_compensate_T_int32()
-{
-
-	/*
-    BME280_S32_t var1, var2, T;
-    var1 = ((((adc_T>>3) – ((BME280_S32_t)dig_T1<<1))) * ((BME280_S32_t)dig_T2)) >> 11;
-    var2 = (((((adc_T>>4) – ((BME280_S32_t)dig_T1)) * ((adc_T>>4) – ((BME280_S32_t)dig_T1))) >> 12) * 
-    ((BME280_S32_t)dig_T3)) >> 14;
-    	 = var1 + var2;
-    T = (t_fine * 5 + 128) >> 8;
-    return T;
-	*/
-	return 0;
-}
-
-BME280_U32_t bme280_compensate_H_int32()
-{
-	/*
-	BME280_S32_t v_x1_u32r;
-	v_x1_u32r = (t_fine – ((BME280_S32_t)76800));
-	v_x1_u32r = (((((adc_H << 14) – (((BME280_S32_t)dig_H4) << 20) – (((BME280_S32_t)dig_H5) * v_x1_u32r)) +
-	((BME280_S32_t)16384)) >> 15) * (((((((v_x1_u32r * ((BME280_S32_t)dig_H6)) >> 10) * (((v_x1_u32r *((BME280_S32_t)dig_H3)) >> 11) + ((BME280_S32_t)32768))) >> 10) + ((BME280_S32_t)2097152)) *
-	((BME280_S32_t)dig_H2) + 8192) >> 14));
-	v_x1_u32r = (v_x1_u32r – (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) * ((BME280_S32_t)dig_H1)) >> 4));
-	v_x1_u32r = (v_x1_u32r < 0 ? 0 : v_x1_u32r);
-	v_x1_u32r = (v_x1_u32r > 419430400 ? 419430400 : v_x1_u32r);
-	return (BME280_U32_t)(v_x1_u32r>>12);
- 	 */
-	return 0;
-}
-
-BME280_U32_t BME280_compensate_P_int64()
-{
-
-	/*
-    BME280_S64_t var1, var2, p;
-    var1 = ((BME280_S64_t)t_fine) – 128000;
-    var2 = var1 * var1 * (BME280_S64_t)dig_P6;
-    var2 = var2 + ((var1*(BME280_S64_t)dig_P5)<<17);
-    var2 = var2 + (((BME280_S64_t)dig_P4)<<35);
-    var1 = ((var1 * var1 * (BME280_S64_t)dig_P3)>>8) + ((var1 * (BME280_S64_t)dig_P2)<<12);
-    var1 = (((((BME280_S64_t)1)<<47)+var1))*((BME280_S64_t)dig_P1)>>33;
-    if (var1 == 0)
-    {
-        return 0; // avoid exception caused by division by zero
-    }
-    p = 1048576-adc_P;
-    p = (((p<<31)-var2)*3125)/var1;
-    var1 = (((BME280_S64_t)dig_P9) * (p>>13) * (p>>13)) >> 25;
-    var2 = (((BME280_S64_t)dig_P8) * p) >> 19;
-    p = ((p + var1 + var2) >> 8) + (((BME280_S64_t)dig_P7)<<4);
-    return (BME280_U32_t)p;
-	 */
-
-	return 0;
-}
-
 float BME280_read_humidity()
 {
 	BME280_read_temperature(); // Read the temperature to prep the sensor.
@@ -200,15 +143,63 @@ float BME280_read_temperature()
 	BME280_S32_t var1, var2;
 	BME280_S32_t adc_T;
 
-	
+	adc_T = BME280_read_u24(BME280_REGISTER_TEMP_MSB);
 
-	return temp;
+	if (adc_T == 0x800000)
+		return NAN;
+
+	adc_T >>= 4;
+
+	var1 = ((((adc_T >> 3) - ((int32_t)sensor.calib.dig_T1 << 1))) *
+			((int32_t)sensor.calib.dig_T2)) >>
+		   11;
+
+	var2 = (((((adc_T >> 4) - ((int32_t)sensor.calib.dig_T1)) *
+			  ((adc_T >> 4) - ((int32_t)sensor.calib.dig_T1))) >>
+			 12) *
+			((int32_t)sensor.calib.dig_T3)) >>
+		   14;
+
+	sensor.t_fine = var1 + var2;
+
+	temp = (sensor.t_fine * 5 + 128) >> 8;
+	return temp / 100;
 }
 
 float BME280_read_pressure()
 {
-	float press;
-	return press;
+	BME280_S64_t var1, var2, p;
+
+	BME280_read_temperature();
+
+	BME280_S32_t adc_P = BME280_read_u24(BME280_REGISTER_PRESS_MSB);
+	if (adc_P == 0x800000)
+		return NAN;
+
+	adc_P >>= 4;
+
+	var1 = ((int64_t)sensor.t_fine) - 128000;
+	var2 = var1 * var1 * (int64_t)sensor.calib.dig_P6;
+	var2 = var2 + ((var1 * (int64_t)sensor.calib.dig_P5) << 17);
+	var2 = var2 + (((int64_t)sensor.calib.dig_P4) << 35);
+	var1 = ((var1 * var1 * (int64_t)sensor.calib.dig_P3) >> 8) +
+		   ((var1 * (int64_t)sensor.calib.dig_P2) << 12);
+	var1 =
+		(((((int64_t)1) << 47) + var1)) * ((int64_t)sensor.calib.dig_P1) >> 33;
+
+	if (var1 == 0)
+	{
+		return 0; // avoid exception caused by division by zero
+	}
+
+	p = 1048576 - adc_P;
+	p = (((p << 31) - var2) * 3125) / var1;
+	var1 = (((int64_t)sensor.calib.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
+	var2 = (((int64_t)sensor.calib.dig_P8) * p) >> 19;
+
+	p = ((p + var1 + var2) >> 8) + (((int64_t)sensor.calib.dig_P7) << 4);
+
+	return (p) / 256;
 }
 
 void foo()
