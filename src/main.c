@@ -106,10 +106,29 @@ int main(void)
 
     BME280_init(); // Initializes the sensor.
 
+    delay_ms(1000);
+
+
+
+
     /* Infinite loop */
     while (1)
     {
+        GPIOA->ODR ^= 0x20; // 0010 0000 xor bit 5. p186
+        delay_ms(1000);
 
+		float t = BME280_read_temperature();
+		delay_ms(1000);
+		float h = BME280_read_humidity();
+		delay_ms(1000);
+		float p = BME280_read_pressure();
+
+		USART_write(t);
+		USART_write(h);
+		USART_write(p);
+
+	    GPIOA->ODR ^= 0x20; // 0010 0000 xor bit 5. p186
+	    delay_ms(1000);
         // Modbus event loop.
         // Handle the modbus packets out of the communication.
 

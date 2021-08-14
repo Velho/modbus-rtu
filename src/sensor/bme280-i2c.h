@@ -41,7 +41,7 @@ uint8_t BME280_write_u8(uint8_t reg, uint8_t value);
  * \param uint16_t size of the rx buffer.
  * \return uint8_t value.
  */
-uint8_t BME280_read(uint8_t reg, uint8_t *data, uint16_t len);
+uint8_t *BME280_read(uint8_t reg, uint8_t *data, uint16_t len);
 
 /**
  * Reads unsigned byte value.

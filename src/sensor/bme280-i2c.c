@@ -58,6 +58,97 @@ void BME280_I2C_init(void)
 	I2C1->CR1 |= 0x1; // Enable peripheral.
 }
 
+void I2C1_Write(uint8_t address, uint8_t command, int n, uint8_t* data)
+{
+	volatile int tmp;
+	int i;
+
+	while(I2C1->SR2 & 2){}			//wait until bus not busy
+
+	I2C1->CR1 &= ~0x800;			//disable POS p.682
+	I2C1->CR1 |= 0x100;				//generate start p.694
+	while(!(I2C1->SR1&1)){}			//wait until start condition generated
+
+	I2C1->DR=address << 1;			//transmit slave address
+	while(!(I2C1->SR1 & 2)){}		//wait until end of address transmission p.690
+
+	tmp=I2C1->SR2;					//Reading I2C_SR2 after reading I2C_SR1 clears the ADDR flag p691
+	while(!(I2C1->SR1 & 0x80)){}	//wait until data register empty p.689
+
+	I2C1->DR = command;				//send command
+
+	//write data
+	for(i=0;i<n;i++)
+	{
+		while(!(I2C1->SR1 & 0x80)){}	//wait until data register empty p.689
+		I2C1->DR=*data++;				//send command
+	}
+
+	while(!(I2C1->SR1 & 4)){}		//wait until byte transfer finished p.690
+	I2C1->CR1 |= (1<<9);			//generate stop
+}
+
+void I2C1_ByteWrite(uint8_t address, uint8_t command)
+{
+	volatile int tmp;
+
+
+	while(I2C1->SR2 & 2){}			//wait until bus not busy
+
+	I2C1->CR1 &= ~0x800;			//Acknowledge clear p.682
+	I2C1->CR1 |= 0x100;				//generate start p.694
+	while(!(I2C1->SR1&1)){}			//wait until start condition generated
+
+	I2C1->DR=address << 1;			//transmit slave address
+	while(!(I2C1->SR1 & 2)){}		//wait until end of address transmission p.690
+
+	tmp=I2C1->SR2;					//Reading I2C_SR2 after reading I2C_SR1 clears the ADDR flag p691
+	while(!(I2C1->SR1 & 0x80)){}	//wait until data register empty p.689
+
+	I2C1->DR = command;				//send command
+
+	while(!(I2C1->SR1 & 4)){}		//wait until byte transfer finished p.690
+	I2C1->CR1 |= (1<<9);			//generate stop
+}
+
+void I2C1_Read(uint8_t address, uint8_t command, int n, uint8_t* data)
+{
+	volatile int tmp;
+
+	while(I2C1->SR2 & 2){}			//wait until bus not busy
+	I2C1->CR1 &= ~(1 << 11);			//Acknowledge clear p.682
+
+	I2C1->CR1 |= (1 << 8);				//generate start p.694
+	while(!(I2C1->SR1&1)){}			//wait until start condition generated
+
+	I2C1->DR=address << 1;			//transmit slave address
+	while(!(I2C1->SR1 & 2)){}		//wait until end of address transmission p.690
+
+	tmp=I2C1->SR2;					//Reading I2C_SR2 after reading I2C_SR1 clears the ADDR flag p691
+	while(!(I2C1->SR1 & (1 << 8))){}	//wait until data register empty p.689
+
+	I2C1->DR=command;				//send command
+	while(!(I2C1->SR1 & (1 << 8))){}	//wait until data register empty p.689
+
+	I2C1->CR1 |= (1 << 8);				//generate repeated start p.694
+	while(!(I2C1->SR1 & 1)){}			//wait until start condition generated
+
+	I2C1->DR=address << 1 | 1;		//transmit slave address
+	while(!(I2C1->SR1 & 2)){}		//wait until end of address transmission p.690
+
+	tmp=I2C1->SR2;					//Reading I2C_SR2 after reading I2C_SR1 clears the ADDR flag p691
+	I2C1->CR1 |= (1<<10);			//Enable acknowledge p.683
+
+	while(n > 0)					//read data from chip
+	{
+		while(!(I2C1->SR1 & (1 << 6)){}	//wait until RXNE flag is set
+		(*data++) = I2C1->DR;			//read data from DR
+		n--;
+	}
+	I2C1->CR1 |= (1<<9);			//generate stop p.682
+	I2C1->CR1 &= ~(1<<10);			//disable acknowledge p.682
+}
+
 /**
  * [S][EV5][HEADER][A][EV9][ADDR][A][EV6][EV8_1][EV8][A][EV8][A][EV8_2][P]
  * S = Start, A = Ack, P = Stop
@@ -192,7 +283,7 @@ uint8_t *BME280_read(uint8_t reg, uint8_t *data, uint16_t len)
 	while (!(I2C1->SR1 & I2C_SR1_ADDR))
 		; // Wait until end of address transmission p.690
 
-	(void)I2C1->SR2;
+	t = I2C1->SR2;
 	I2C1->CR1 |= I2C_SR1_AF; // x400
 
 	// uint8_t *data = data // bme280_i2c.rxbuffer;
@@ -211,7 +302,7 @@ uint8_t *BME280_read(uint8_t reg, uint8_t *data, uint16_t len)
 }
 
 
-uint8_t BME280_read_u8(uint8_t reg)
+uint8_t BME280_read_value(uint8_t reg)
 {
 	__IO int t;
 	uint8_t value;
@@ -294,9 +385,9 @@ uint8_t BME280_read_u8(uint8_t reg)
 uint16_t BME280_read_u16(uint8_t reg)
 {
 	uint16_t value;
-	// BME280_read(reg, &value, sizeof(value));
-
-	value = (BME280_read_u8(reg) << 8) | BME280_read_u8(reg);
+	BME280_read(reg, &value, sizeof(value));
+	// value = (BME280_read_value(reg) << 8) | BME280_read_value(reg);
+	// value = (BME280_read_u8(reg) << 8) | BME280_read_u8(reg);
 
 	return value;
 }
@@ -318,6 +409,14 @@ uint32_t BME280_read_u24(uint8_t reg)
 	uint32_t value;
 	// Can be done without shifting through the values?
 	value = BME280_read(reg, &value, sizeof(value));
+
+	return value;
+}
+
+int32_t BME280_read_s24(uint8_t reg)
+{
+	int32_t value;
+	value = BME280_read_u24(reg);
 
 	return value;
 }

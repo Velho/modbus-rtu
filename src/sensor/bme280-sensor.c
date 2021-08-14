@@ -100,7 +100,7 @@ void BME280_set_sampling(sensor_mode_t mode, oversampling_t sample)
 
 float BME280_read_humidity()
 {
-	BME280_read_temperature(); // Read the temperature to prep the sensor.
+	BME280_read_temperature(); // Read the temperature to get the t_fine.
 
 	BME280_S32_t adc_h;
 	adc_h = BME280_read_s16(BME280_REGISTER_HUM_MSB);
@@ -134,13 +134,11 @@ float BME280_read_humidity()
 	v_x1_u32r = (v_x1_u32r > 419430400) ? 419430400 : v_x1_u32r;
 	float h = (v_x1_u32r >> 12);
 	return h / 1024.0;
-
-	return h;
 }
 
 float BME280_read_temperature()
 {
-	BME280_S32_t var1, var2;
+	BME280_S32_t var1, var2, t;
 	BME280_S32_t adc_T;
 
 	adc_T = BME280_read_u24(BME280_REGISTER_TEMP_MSB);
@@ -162,8 +160,8 @@ float BME280_read_temperature()
 
 	sensor.t_fine = var1 + var2;
 
-	temp = (sensor.t_fine * 5 + 128) >> 8;
-	return temp / 100;
+	t = (sensor.t_fine * 5 + 128) >> 8;
+	return t / 100;
 }
 
 float BME280_read_pressure()
